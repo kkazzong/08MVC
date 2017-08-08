@@ -47,7 +47,12 @@
    	:: 본실습에서는 주석처리 : 추후 PJT 시 RestFul 고려 LogonCheckInterceptor 조건 추가할것
    	-->
 
-
+	<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+	
+		<property name="maxUploadSize" value="100000000"/>
+		
+	</bean>
+	
 	<!--  :: ViewResolver 선언 -->	
     <bean id="viewResolver"
 				class="org.springframework.web.servlet.view.InternalResourceViewResolver" />

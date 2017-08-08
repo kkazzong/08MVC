@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+		
+<mapper namespace="ProductMapper">
+	
+	<resultMap type="com.model2.mvc.service.domain.Product" id="selectProductMap">
+		<result property="prodNo" column="prod_no" jdbcType="NUMERIC"/>
+		<result property="prodName" column="prod_name" jdbcType="VARCHAR"/>
+		<result property="prodDetail" column="prod_detail" jdbcType="VARCHAR"/>
+		<result property="manuDate" column="manufacture_day" jdbcType="VARCHAR"/>
+		<result property="price" column="price" jdbcType="NUMERIC"/>
+		<!-- <result property="fileName" column="image_file" jdbcType="VARCHAR"  javaType="java.util.List" typeHandler="com.model2.mvc.common.ListTypeHandler"/> -->
+		<result property="fileName" column="image_file" jdbcType="VARCHAR"  javaType="java.util.List"/> 
+		<!-- <result property="fileName" column="image_file" jdbcType="VARCHAR" javaType="java.util.List" typeHandler="com.model2.mvc.common.ListTypeHandlerTwo" />  -->
+		<result property="regDate" column="reg_date" jdbcType="DATE"/>
+		<result property="proTranCode" column="tran_code" jdbcType="VARCHAR"/>
+	</resultMap>
+	
+	<insert id="insertProduct" parameterType="com.model2.mvc.service.domain.Product">
+		INSERT
+		INTO product(prod_no, prod_name, prod_detail, manufacture_day, price, image_file, reg_date)
+		VALUES( seq_product_prod_no.nextval, 
+						#{prodName:VARCHAR},
+						#{prodDetail:VARCHAR},
+						#{manuDate:VARCHAR},
+						<if test="price == 0">null</if>
+						<if test="price != 0">#{price}</if>,
+						#{fileName:VARCHAR},
+						SYSDATE)
+	</insert>
+	
+	<select id="getProduct" parameterType="int" resultMap="selectProductMap">
+		SELECT 
+		t.tran_code, p.prod_no, p.prod_name, p.prod_detail, p.price, p.manufacture_day, p.image_file, p.reg_date
+		FROM product p, transaction t
+		WHERE p.prod_no = t.prod_no(+)
+			AND p.prod_no = #{value}
+	</select>
+	
+	<update id="updateProduct" parameterType="com.model2.mvc.service.domain.Product">
+		UPDATE product
+		<set>
+			prod_name = #{prodName:VARCHAR},
+			prod_detail = #{prodDetail:VARCHAR},
+			price = #{price},
+			manufacture_day = #{manuDate:DATE},
+			image_file = #{fileName:VARCHAR},
+			reg_date = SYSDATE
+		</set>
+ 			WHERE prod_no = #{prodNo}
+	</update>
+	
+	<select id="getProductList" parameterType="com.model2.mvc.common.Search" resultMap="selectProductMap">
+		SELECT *
+		FROM (SELECT inner_table.*, ROWNUM AS row_seq
+					FROM  
+								(SELECT 
+								t.tran_code, p.prod_no, p.prod_name, p.prod_detail, p.manufacture_day, p.price, p.image_file, p.reg_date
+								FROM product p, transaction t
+								<where>
+									p.prod_no = t.prod_no(+)
+									<if test="searchCondition != null and searchCondition != ''" >
+										<choose>
+											<when test="searchCondition == 0 and searchKeyword != ''">
+												AND p.prod_no = #{searchKeyword}
+											</when>
+											<when test="searchCondition == 1 and searchKeyword != ''">
+												AND p.prod_name LIKE '%${searchKeyword}%'
+											</when>
+											<!--  가격검색 -->
+											<when test="searchCondition == 2 and searchKeyword != ''"> 
+												<if test="searchKeywordPrice != null and searchKeywordPrice != ''">
+													AND p.price BETWEEN #{searchKeyword} AND #{searchKeywordPrice}
+												</if>
+												<if test="searchKeywordPrice == '' or searchKeywordPrice == null">
+													AND p.price >= #{searchKeyword}
+												</if>
+											</when>
+										</choose>
+									</if>
+									<!-- 판매상품 -->
+									<if test="searchSoldProd != null and searchSoldProd == 1">
+										AND t.tran_code IS NOT NULL
+									</if>
+									<if test="searchSoldProd == null or searchSoldProd == ''">
+										AND t.tran_code IS NULL
+									</if>
+								</where>
+								ORDER BY 
+								<!-- 정렬 -->
+								<if test="sortCondition != null and sortCondition != ''">
+									<if test="sortCondition == 'asc'">
+										p.prod_name
+									</if>
+									<if test="sortCondition == 'desc'">
+										p.prod_name DESC
+									</if>
+								</if>
+								<if test="sortCondition2 != null and sortCondition2 != ''">
+									<if test="sortCondition2 == 'asc'">
+										p.price
+									</if>
+									<if test="sortCondition2 == 'desc'">
+										p.price DESC
+									</if>
+								</if>
+								<if test="(sortCondition == null or sortCondition == '') and (sortCondition2 == null or sortCondition2 == '')">
+									p.prod_no
+								</if>) inner_table
+					WHERE ROWNUM &lt;= ${currentPage}*${pageSize})
+			WHERE row_seq BETWEEN (${currentPage}-1)*${pageSize}+1 AND ${currentPage}*${pageSize}
+		
+	</select>
+	
+	<select id="getCount" resultType="int">
+		SELECT COUNT(*)
+		FROM (SELECT 
+					t.tran_code, p.prod_no, p.prod_name, p.prod_detail, p.manufacture_day, p.price, p.image_file, p.reg_date
+					FROM product p, transaction t
+					<where>
+						p.prod_no = t.prod_no(+)
+						<if test="searchCondition != null and searchCondition != ''">
+							<choose>
+								<when test="searchCondition == 0 and searchKeyword != ''">
+									AND p.prod_no = #{searchKeyword}
+								</when>
+								<when test="searchCondition == 1 and searchKeyword != ''">
+									AND p.prod_name LIKE #{searchKeyword}
+								</when>
+								<!--  가격검색 -->
+								<when test="searchCondition == 2 and searchKeyword != ''"> 
+									<if test="searchKeywordPrice != null and searchKeywordPrice != ''">
+										AND p.price BETWEEN #{searchKeyword} AND #{searchKeywordPrice}
+									</if>
+									<if test="searchKeywordPrice == '' or searchKeywordPrice == null">
+										AND p.price >= #{searchKeyword}
+									</if>
+								</when>
+							</choose>
+						</if>
+						<!-- 판매상품 -->
+						<if test="searchSoldProd != null and searchSoldProd == 1">
+							AND t.tran_code IS NOT NULL
+						</if>
+						<if test="searchSoldProd == null or searchSoldProd == ''">
+							AND t.tran_code IS NULL
+						</if>
+					</where>
+					ORDER BY 
+					<!-- 정렬 -->
+					<if test="sortCondition != null and sortCondition != ''">
+						<if test="sortCondition == 'asc'">
+							p.prod_name
+						</if>
+						<if test="sortCondition == 'desc'">
+							p.prod_name DESC
+						</if>
+					</if>
+					<if test="sortCondition2 != null and sortCondition2 != ''">
+						<if test="sortCondition2 == 'asc'">
+							p.price
+						</if>
+						<if test="sortCondition2 == 'desc'">
+							p.price DESC
+						</if>
+					</if>
+					<if test="(sortCondition == null or sortCondition == '') and (sortCondition2 == null or sortCondition2 == '')">
+						p.prod_no
+					</if>) countTable
+	</select>
+	
+	<delete id="deleteProduct" parameterType="int">
+		DELETE
+		FROM product
+		WHERE prod_no = #{value}
+	</delete>
+	
+</mapper>
