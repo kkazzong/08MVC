@@ -147,14 +147,15 @@ function fncUpdateProduct(){
 	<tr>
 		<td width="104" class="ct_write">상품이미지</td>
 		<td bgcolor="D6D6D6" width="1"></td>
+		<td class="ct_write01">
 		<c:forEach var="uploadFile" items="${product.fileName}">
 			<c:set var="filePath"  value="../images/uploadFiles/${uploadFile}"/>
-				${filePath}
+				<%-- ${filePath} --%>
+			<img src="${filePath}" width="100" heigth="100"/>
 		</c:forEach>
-		<td class="ct_write01">
-		
+		<br>
 			<input	type="file" name="uploadFile" class="ct_input_g"  multiple="multiple" 
-						style="width: 200px; height: 19px" maxLength="13"/>
+						  style="width: 200px; height: 19px" maxLength="13"/>
 		<%-- </c:forEach> --%>
 		</td>
 	</tr>

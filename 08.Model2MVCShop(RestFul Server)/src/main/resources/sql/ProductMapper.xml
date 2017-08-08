@@ -19,7 +19,8 @@
 		<result property="proTranCode" column="tran_code" jdbcType="VARCHAR"/>
 	</resultMap>
 	
-	<insert id="insertProduct" parameterType="com.model2.mvc.service.domain.Product">
+	<insert id="insertProduct" parameterType="com.model2.mvc.service.domain.Product" 
+		useGeneratedKeys="true" keyColumn="prod_no" keyProperty="prodNo">
 		INSERT
 		INTO product(prod_no, prod_name, prod_detail, manufacture_day, price, image_file, reg_date)
 		VALUES( seq_product_prod_no.nextval, 
