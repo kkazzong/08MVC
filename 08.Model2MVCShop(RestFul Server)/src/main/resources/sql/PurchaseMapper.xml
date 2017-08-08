@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+		
+<mapper namespace="PurchaseMapper">
+	
+	<!-- <sql id="selectProduct">
+		SELECT prod_no
+		FROM product
+	</sql> -->
+	<resultMap type="com.model2.mvc.service.domain.Purchase" id="selectPurchaseMap">
+		<id property="tranNo" column="tran_no" jdbcType="NUMERIC"/>
+		<result property="tranCode" column="tran_code" jdbcType="VARCHAR"/>
+		<result property="receiverName" column="receiver_name" jdbcType="VARCHAR"/>
+		<result property="receiverPhone" column="receiver_phone" jdbcType="VARCHAR"/>
+		<result property="receiverAddr" column="receiver_addr" jdbcType="VARCHAR"/>
+		<result property="receiverRequest" column="receiver_request" jdbcType="VARCHAR"/>
+		<result property="paymentOption" column="payment_option" jdbcType="VARCHAR"/>
+		<result property="receiverDate" column="receiver_date" jdbcType="DATE"/>
+		<result property="orderDate" column="order_date" jdbcType="DATE"/>
+		<association property="purchaseProd" javaType="com.model2.mvc.service.domain.Product">
+			<id property="prodNo" column="prod_no" jdbcType="NUMERIC"/>
+			<result property="prodName" column="prod_name" jdbcType="VARCHAR"/>
+			<result property="price" column="price" jdbcType="NUMERIC"/>
+			<result property="regDate" column="reg_date" jdbcType="DATE"/>
+		</association>
+		<association property="buyer" javaType="com.model2.mvc.service.domain.User">
+			<id property="userId" column="user_id" jdbcType="VARCHAR"/>
+			<result property="userName" column="user_name" jdbcType="VARCHAR"/>
+			<result property="phone" column="cell_phone" jdbcType="VARCHAR"/>
+		</association>
+	</resultMap>
+	
+	<insert id="addPurchase" parameterType="com.model2.mvc.service.domain.Purchase">
+		INSERT
+		INTO transaction (tran_no, prod_no, buyer_id, payment_option, receiver_name, receiver_phone, receiver_addr, receiver_request, tran_code, order_date, receiver_date)
+		VALUES (seq_transaction_tran_no.nextVal,
+					   #{purchaseProd.prodNo:NUMERIC},
+					   #{buyer.userId:VARCHAR},
+					   #{paymentOption:VARCHAR},
+					   #{receiverName:VARCHAR},
+					   #{receiverPhone:VARCHAR},
+					   #{receiverAddr:VARCHAR},
+					   #{receiverRequest:VARCHAR},
+					   '1',
+					   SYSDATE,
+					   #{receiverDate:DATE})
+	</insert>
+	
+	<select id="getPurchase" parameterType="int" resultMap="selectPurchaseMap">
+		SELECT
+		p.prod_no, p.prod_name, t.receiver_name, t.tran_no, t.tran_code, t.payment_option, 
+		t.receiver_phone, t.receiver_addr, t.receiver_request, t.buyer_id AS user_id
+		,TO_CHAR(t.receiver_date,'yyyymmdd') receiver_date
+		FROM product p, transaction t
+		WHERE p.prod_no = t.prod_no AND t.tran_no = #{value}
+	</select>
+	
+	<select id="getPurchaseByProdNo" parameterType="int" resultMap="selectPurchaseMap">
+		SELECT
+		p.prod_no,
+		p.prod_name,
+		t.tran_no,
+		t.buyer_id AS user_id,
+		t.receiver_name,
+		t.tran_code,
+		t.payment_option, 
+		t.receiver_phone,
+		t.receiver_addr,
+		t.receiver_request,
+		TO_CHAR(t.receiver_date,'yy-mm-dd') receiver_date
+		FROM product p, transaction t, users u
+		WHERE p.prod_no = t.prod_no 
+			AND p.prod_no = #{value}
+	</select>
+	
+	<update id="updatePurchase" parameterType="com.model2.mvc.service.domain.Purchase">
+		UPDATE transaction
+		<set>
+			<if test="receiverName != null">
+				receiver_name = #{receiverName},
+			</if>
+			<if test="receiverPhone != null">
+				receiver_phone = #{receiverPhone},
+			</if>
+			<if test="receiverAddr != null">
+				receiver_addr = #{receiverAddr},
+			</if>
+			<if test="receiverRequest != null">
+				receiver_request = #{receiverRequest},
+			</if>
+			<if test="receiverDate != null">
+				receiver_date = #{receiverDate}
+			</if>
+		</set>
+		<where>
+			tran_no = #{tranNo}
+		</where>
+	</update>
+	
+	<update id="updateTranCode" parameterType="hashmap">
+		UPDATE 
+		transaction
+		<set>
+			tran_code = #{tranCode}
+		</set>
+		<where>
+			prod_no = #{purchaseProd.prodNo}
+		</where>
+	</update>
+	
+	<select id="getPurchaseList" parameterType="map" resultMap="selectPurchaseMap">
+		SELECT *
+		FROM (SELECT inner_table.*, ROWNUM AS row_seq
+					FROM (SELECT 
+								u.user_id, u.user_name, u.cell_phone,
+								p.prod_no, p.prod_name, p.price,
+								t.tran_no, t.order_date, t.tran_code
+								FROM users u, product p, transaction t
+								<where>
+								 	u.user_id = t.buyer_id
+									AND p.prod_no = t.prod_no
+									AND u.user_id = #{userId}
+								</where>) inner_table
+					WHERE ROWNUM &lt;= ${search.currentPage}*${search.pageSize})
+		WHERE row_seq BETWEEN (${search.currentPage}-1)*${search.pageSize}+1 AND ${search.currentPage}*${search.pageSize}
+	</select>
+	
+	<select id="getSaleList" parameterType="com.model2.mvc.common.Search" resultMap="selectPurchaseMap">
+		SELECT *
+		FROM (SELECT inner_table.*, ROWNUM AS row_seq
+					FROM (SELECT 
+								u.user_id, u.user_name, u.cell_phone,
+								p.prod_no, p.prod_name, p.price, p.reg_date,
+								t.tran_no, t.order_date, t.tran_code
+								FROM users u, product p, transaction t
+								<where>
+								 	u.user_id = t.buyer_id
+									AND p.prod_no = t.prod_no
+									<if test="searchCondition != null and searchCondition != ''">
+										<if test="searchCondition == 0 and searchKeyword != ''">
+											AND p.prod_no = #{searchKeyword}
+										</if>
+										<if test="searchCondition == 1 and searchKeyword != ''">
+											AND p.prod_name LIKE '%${searchKeyword}%'
+										</if>
+										<if test="searchCondition == 2 and searchKeyword != ''">
+											<if test="searchKeywordPrice != null and searchKeywordPrice != ''">
+												AND p.price BETWEEN #{searchKeword} AND #{searchKeywordPrice}
+											</if>
+											<if test="searchKeywordPrice == null or searchKeywordPrice == ''">
+												AND p.price >= #{searchKeyword}
+											</if>
+										</if>
+									</if>
+								</where>) inner_table
+					WHERE ROWNUM &lt;= ${currentPage}*${pageSize})
+		WHERE row_seq BETWEEN (${currentPage}-1)*${pageSize}+1 AND ${currentPage}*${pageSize}
+	</select>
+	
+	<!-- <select id="getPurchaseTotalCount" parameterType="map" resultType="int">
+		SELECT COUNT(*)
+		FROM (SELECT 
+					u.user_id, u.user_name, u.cell_phone,
+					p.prod_no, p.prod_name, p.price,
+					t.tran_no, t.order_date, t.tran_code
+					FROM users u, product p, transaction t
+					WHERE u.user_id = t.buyer_id
+						AND p.prod_no = t.prod_no
+						AND u.user_id = #{userId}) countTable
+	</select> -->
+	
+	<select id="getTotalCount" parameterType="map" resultType="int">
+		SELECT COUNT(*)
+		FROM (SELECT 
+								u.user_id, u.user_name, u.cell_phone,
+								p.prod_no, p.prod_name, p.price,
+								t.tran_no, t.order_date, t.tran_code
+								FROM users u, product p, transaction t
+								<where>
+								 	u.user_id = t.buyer_id
+									AND p.prod_no = t.prod_no
+									<if test="userId != null and userId != ''">
+										AND u.user_id = #{userId}
+									</if>
+									<if test="search.searchCondition != null and search.searchCondition != ''">
+										<if test="search.searchCondition == 0 and search.searchKeyword != ''">
+											AND p.prod_no = #{search.searchKeyword}
+										</if>
+										<if test="search.searchCondition == 1 and search.searchKeyword != ''">
+											AND p.prod_name LIKE #{search.searchKeyword}
+										</if>
+										<if test="search.searchCondition == 2 and search.searchKeyword != ''">
+											<if test="search.searchKeywordPrice != null and search.searchKeywordPrice != ''">
+												AND p.price BETWEEN #{search.searchKeword} AND #{search.searchKeywordPrice}
+											</if>
+											<if test="search.searchKeywordPrice == null or search.searchKeywordPrice == ''">
+												AND p.price >= #{search.searchKeyword}
+											</if>
+										</if>
+									</if>
+								</where>) countTable
+	</select>
+	
+	
+</mapper>
