@@ -149,17 +149,30 @@ public class ProductRestController {
 		return null;
 	}
 	
-	@RequestMapping(value="json/listProduct/*", method=RequestMethod.GET)
-	public Map listProduct(/*@PathVariable String menu*/) throws Exception {
+//	@RequestMapping(value="json/listProduct/*", method=RequestMethod.GET)
+	@RequestMapping(value="json/listProduct")
+//	public Map listProduct(/*@PathVariable String menu*/) throws Exception {
+	public Map listProduct(@RequestBody(required=false) Search search) throws Exception {
 		
 		System.out.println(">>[From Client]<<");
-		System.out.println();
-		
+		System.out.println(search);
+		/*
 		Search search = new Search();
 		search.setCurrentPage(1);
 		search.setPageSize(pageSize);
-		
-		
+		*/
+		if(search != null) {
+			if(search.getCurrentPage() == 0) {
+				search.setCurrentPage(1);
+			}
+			search.setPageSize(pageSize);
+		} else {
+			search = new Search();
+			if(search.getCurrentPage() == 0) {
+				search.setCurrentPage(1);
+			}
+			search.setPageSize(pageSize);
+		}
 		Map<String, Object> map = productService.getProductList(search);
 		
 		Page page = new Page(search.getCurrentPage(), (Integer)map.get("totalCount"), pageUnit, pageSize);
